@@ -184,8 +184,6 @@ For a detailed breakdown of changes, see [CREDITS.md](CREDITS.md).
 
 ---
 
-## �📄 License
+## License
 
 MIT — see [LICENSE](LICENSE).
-
-AUTHOR - SAJEED HUSSAIN (and with help of AI)
