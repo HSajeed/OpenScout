@@ -87,7 +87,7 @@ This project is based on the original OpenPlanter architecture and codebase.
 
 If you use this project, please:
 
-1. **Mention the original author:** "Based on [ShinMegamiBoson/OpenPlanter](https://github.com/ShinMegamiBoson/OpenPlanter)"
+1. **Mention both the authors** 
 2. **Link to the original repo** in your README or CREDITS
 3. **Respect the MIT license** from the original project
 4. **List your contributions** (academic API integrations, rebrand to literature review, etc.)
