@@ -32,6 +32,7 @@ OpenScout searches and ingests scholarly sources — arXiv preprints, Semantic S
 ### Prerequisites
 - Python 3.10+ or Docker
 - An API key for at least one LLM provider
+- An API for Semantic_search is required. By default 1 R/s has been set due to lack of the API key. Override this logic if API is available.
 
 ### 1. Clone & Configure
 
