@@ -172,3 +172,5 @@ make demo
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+AUTHOR - SAJEED HUSSAIN (and with help of AI)
