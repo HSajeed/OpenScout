@@ -1,4 +1,4 @@
-# 🔬 OpenScout
+#  OpenScout
 
 **An AI-powered academic systematic literature review agent.**
 
@@ -6,7 +6,7 @@ OpenScout searches and ingests scholarly sources — arXiv preprints, Semantic S
 
 ---
 
-## ✨ Features
+##  Features
 
 | Tool | Description |
 |------|-------------|
@@ -20,14 +20,14 @@ OpenScout searches and ingests scholarly sources — arXiv preprints, Semantic S
 | `run_shell` | Execute shell commands for data processing |
 
 **Additional capabilities:**
-- 🔄 **Recursive reasoning** — breaks complex literature reviews into sub-tasks automatically
-- 📝 **Acceptance criteria** — self-validates output quality before finishing
-- 🧠 **Multi-provider LLM support** — Google Gemini, OpenAI, Anthropic, Ollama, and more
-- 📊 **Table extraction** — pulls methodology tables from PDFs into Markdown
+-  **Recursive reasoning** — breaks complex literature reviews into sub-tasks automatically
+-  **Acceptance criteria** — self-validates output quality before finishing
+-  **Multi-provider LLM support** — Google Gemini, OpenAI, Anthropic, Ollama, and more
+-  **Table extraction** — pulls methodology tables from PDFs into Markdown
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Python 3.10+ or Docker
@@ -65,7 +65,7 @@ python -m agent --workspace ./workspace
 
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 All configuration is done through the `.env` file. See [`.env.example`](.env.example) for all options.
 
@@ -103,7 +103,7 @@ OPENSCOUT_MODEL=gemini-2.5-flash
 
 ---
 
-## 📖 Usage Examples
+##  Usage Examples
 
 ### Interactive Mode
 ```bash
@@ -134,7 +134,7 @@ docker compose run --rm agent
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 OpenScout/
@@ -157,7 +157,7 @@ OpenScout/
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run unit tests
@@ -169,11 +169,11 @@ make demo
 
 ---
 
-## � Credits
+## Credits
 
 This project is adapted from [**OpenPlanter**](https://github.com/ShinMegamiBoson/OpenPlanter) by [ShinMegamiBoson](https://github.com/ShinMegamiBoson).
 
-**Modifications by [HSajeed](https://github.com/HSajeed):**
+**Modifications by Sajeed Hussain [HSajeed](https://github.com/HSajeed):**
 - Rebrand for academic literature review workflows
 - Added arXiv, Semantic Scholar, OpenAlex, and CrossRef integrations
 - Updated system prompts and tool routing for academic research
