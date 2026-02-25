@@ -169,7 +169,22 @@ make demo
 
 ---
 
-## 📄 License
+## � Credits
+
+This project is adapted from [**OpenPlanter**](https://github.com/ShinMegamiBoson/OpenPlanter) by [ShinMegamiBoson](https://github.com/ShinMegamiBoson).
+
+**Modifications by [HSajeed](https://github.com/HSajeed):**
+- Rebrand for academic literature review workflows
+- Added arXiv, Semantic Scholar, OpenAlex, and CrossRef integrations
+- Updated system prompts and tool routing for academic research
+- PDF extraction and academic paper analysis
+- Enhanced tool ecosystem for scholarly research
+
+For a detailed breakdown of changes, see [CREDITS.md](CREDITS.md).
+
+---
+
+## �📄 License
 
 MIT — see [LICENSE](LICENSE).
 
