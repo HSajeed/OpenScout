@@ -13,6 +13,7 @@ import threading
 import urllib.error
 import urllib.request
 import re as _re
+import time
 import zlib
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -54,8 +55,9 @@ class WorkspaceTools:
     max_file_chars: int = 20000
     max_files_listed: int = 400
     max_search_hits: int = 200
-    exa_api_key: str | None = None
-    exa_base_url: str = "https://api.exa.ai"
+    exa_api_key: str | None = None  # Deprecated, kept for compat
+    exa_base_url: str = "https://api.exa.ai"  # Deprecated
+    openalex_api_key: str | None = None
 
     def __post_init__(self) -> None:
         self.root = self.root.expanduser().resolve()
@@ -771,38 +773,82 @@ class WorkspaceTools:
                 pass
         return report.render()
 
-    def _exa_request(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
-        if not (self.exa_api_key and self.exa_api_key.strip()):
-            raise ToolError("EXA_API_KEY not configured")
-        url = self.exa_base_url.rstrip("/") + endpoint
-        req = urllib.request.Request(
-            url=url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "x-api-key": self.exa_api_key,
-                "Content-Type": "application/json",
-                "User-Agent": "exa-py 1.0.18",
-            },
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=self.command_timeout_sec) as resp:
-                raw = resp.read().decode("utf-8", errors="replace")
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            raise ToolError(f"Exa API HTTP {exc.code}: {body}") from exc
-        except urllib.error.URLError as exc:
-            raise ToolError(f"Exa API connection error: {exc}") from exc
-        except OSError as exc:
-            raise ToolError(f"Exa API network error: {exc}") from exc
+    def _reconstruct_abstract(self, inv_index: dict[str, list[int]] | None) -> str:
+        """Reconstruct abstract from OpenAlex inverted index format."""
+        if not inv_index or not isinstance(inv_index, dict):
+            return ""
+        word_positions: list[tuple[int, str]] = []
+        for word, positions in inv_index.items():
+            for pos in positions:
+                word_positions.append((pos, word))
+        word_positions.sort(key=lambda x: x[0])
+        return " ".join(w for _, w in word_positions)
+
+    def openalex_search(
+        self,
+        query: str,
+        max_results: int = 10,
+        filter_expr: str = "",
+    ) -> str:
+        """Search OpenAlex for academic works."""
+        query = query.strip()
+        if not query:
+            return "openalex_search requires a non-empty query"
+        clamped = max(1, min(int(max_results), 50))
+
+        encoded_query = urllib.request.quote(query)
+        url = f"https://api.openalex.org/works?search={encoded_query}&per_page={clamped}"
+        if filter_expr and filter_expr.strip():
+            url += f"&filter={urllib.request.quote(filter_expr.strip())}"
+
+        headers: dict[str, str] = {"User-Agent": "OpenScout/1.0"}
+        if self.openalex_api_key and self.openalex_api_key.strip():
+            headers["Authorization"] = f"Bearer {self.openalex_api_key.strip()}"
 
         try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ToolError(f"Exa API returned non-JSON payload: {raw[:500]}") from exc
-        if not isinstance(parsed, dict):
-            raise ToolError(f"Exa API returned non-object response: {type(parsed)!r}")
-        return parsed
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:300]
+            return f"OpenAlex API error (HTTP {exc.code}): {body}"
+        except Exception as exc:
+            return f"OpenAlex search failed: {exc}"
+
+        results: list[dict[str, Any]] = []
+        for work in (data.get("results") or []) if isinstance(data, dict) else []:
+            if not isinstance(work, dict):
+                continue
+            # Extract authors
+            authors = []
+            for authorship in (work.get("authorships") or [])[:10]:
+                if isinstance(authorship, dict):
+                    author = authorship.get("author", {})
+                    if isinstance(author, dict) and author.get("display_name"):
+                        authors.append(author["display_name"])
+            # Extract DOI
+            doi = work.get("doi", "") or ""
+            if doi.startswith("https://doi.org/"):
+                doi = doi[len("https://doi.org/"):]
+            # Reconstruct abstract
+            abstract = self._reconstruct_abstract(work.get("abstract_inverted_index"))
+            # Open access URL
+            oa = work.get("open_access", {})
+            oa_url = oa.get("oa_url", "") if isinstance(oa, dict) else ""
+
+            results.append({
+                "title": work.get("title", "") or "",
+                "authors": authors,
+                "year": work.get("publication_year"),
+                "doi": doi,
+                "cited_by_count": work.get("cited_by_count", 0),
+                "oa_url": oa_url or "",
+                "abstract": abstract[:500] if abstract else "",
+                "openalex_id": work.get("id", ""),
+            })
+
+        output = {"query": query, "results": results, "total": len(results)}
+        return self._clip(json.dumps(output, indent=2, ensure_ascii=True), self.max_file_chars)
 
     def web_search(
         self,
@@ -810,33 +856,32 @@ class WorkspaceTools:
         num_results: int = 10,
         include_text: bool = False,
     ) -> str:
+        """Search the web using DuckDuckGo."""
         query = query.strip()
         if not query:
             return "web_search requires non-empty query"
         clamped_results = max(1, min(int(num_results), 20))
-        payload: dict[str, Any] = {
-            "query": query,
-            "numResults": clamped_results,
-        }
-        if include_text:
-            payload["contents"] = {"text": {"maxCharacters": 4000}}
 
         try:
-            parsed = self._exa_request("/search", payload)
+            from ddgs import DDGS
+        except ImportError:
+            return "web_search unavailable: 'ddgs' package not installed (pip install ddgs)"
+
+        try:
+            with DDGS() as ddgs:
+                raw_results = list(ddgs.text(query, max_results=clamped_results))
         except Exception as exc:
             return f"Web search failed: {exc}"
 
         out_results: list[dict[str, Any]] = []
-        for row in parsed.get("results", []) if isinstance(parsed.get("results"), list) else []:
+        for row in raw_results:
             if not isinstance(row, dict):
                 continue
             item: dict[str, Any] = {
-                "url": str(row.get("url", "")),
+                "url": str(row.get("href", "") or row.get("link", "")),
                 "title": str(row.get("title", "")),
-                "snippet": str(row.get("highlight", "") or row.get("snippet", "")),
+                "snippet": str(row.get("body", "") or row.get("snippet", "")),
             }
-            if include_text and isinstance(row.get("text"), str):
-                item["text"] = self._clip(str(row["text"]), 4000)
             out_results.append(item)
 
         output = {
@@ -859,29 +904,267 @@ class WorkspaceTools:
         if not normalized:
             return "fetch_url requires at least one valid URL"
         normalized = normalized[:10]
-        payload: dict[str, Any] = {
-            "ids": normalized,
-            "text": {"maxCharacters": 8000},
-        }
-        try:
-            parsed = self._exa_request("/contents", payload)
-        except Exception as exc:
-            return f"Fetch URL failed: {exc}"
 
         pages: list[dict[str, Any]] = []
-        for row in parsed.get("results", []) if isinstance(parsed.get("results"), list) else []:
-            if not isinstance(row, dict):
-                continue
-            pages.append(
-                {
-                    "url": str(row.get("url", "")),
-                    "title": str(row.get("title", "")),
-                    "text": self._clip(str(row.get("text", "")), 8000),
-                }
-            )
+        for target_url in normalized:
+            try:
+                req = urllib.request.Request(
+                    target_url,
+                    headers={"User-Agent": "OpenScout/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=self.command_timeout_sec) as resp:
+                    raw_bytes = resp.read()
+                    text = raw_bytes.decode("utf-8", errors="replace")
+                pages.append({
+                    "url": target_url,
+                    "title": "",
+                    "text": self._clip(text, 8000),
+                })
+            except Exception as exc:
+                pages.append({
+                    "url": target_url,
+                    "title": "",
+                    "text": f"Error fetching URL: {exc}",
+                })
 
         output = {
             "pages": pages,
             "total": len(pages),
         }
         return self._clip(json.dumps(output, indent=2, ensure_ascii=True), self.max_file_chars)
+
+    # -----------------------------------------------------------------------
+    # Academic research tools
+    # -----------------------------------------------------------------------
+
+    def arxiv_search(self, query: str, max_results: int = 10) -> str:
+        """Search arXiv for academic papers."""
+        query = query.strip()
+        if not query:
+            return "arxiv_search requires a non-empty query"
+        clamped = max(1, min(int(max_results), 50))
+        try:
+            import arxiv as _arxiv
+        except ImportError:
+            return "arxiv_search unavailable: 'arxiv' package not installed (pip install arxiv)"
+        try:
+            client = _arxiv.Client()
+            search = _arxiv.Search(query=query, max_results=clamped)
+            results: list[dict[str, Any]] = []
+            for paper in client.results(search):
+                results.append({
+                    "arxiv_id": paper.entry_id.split("/abs/")[-1] if "/abs/" in paper.entry_id else paper.entry_id,
+                    "title": paper.title,
+                    "authors": [a.name for a in paper.authors][:10],
+                    "abstract": paper.summary[:500] if paper.summary else "",
+                    "published": paper.published.isoformat() if paper.published else "",
+                    "pdf_url": paper.pdf_url or "",
+                    "categories": list(paper.categories)[:5],
+                })
+        except Exception as exc:
+            return f"arXiv search failed: {exc}"
+        output = {"query": query, "results": results, "total": len(results)}
+        return self._clip(json.dumps(output, indent=2, ensure_ascii=True), self.max_file_chars)
+
+    def semantic_scholar_lookup(
+        self,
+        query: str,
+        fields: str = "title,authors,year,abstract,citationCount,url,externalIds",
+        max_results: int = 5,
+    ) -> str:
+        """Look up papers on Semantic Scholar."""
+        query = query.strip()
+        if not query:
+            return "semantic_scholar_lookup requires a non-empty query"
+        clamped = max(1, min(int(max_results), 20))
+
+        # Detect if query is a DOI, arXiv ID, or S2 ID for direct lookup
+        is_direct = False
+        if query.startswith("10."):
+            lookup_id = f"DOI:{query}"
+            is_direct = True
+        elif _re.match(r"^\d{4}\.\d{4,5}(v\d+)?$", query):
+            lookup_id = f"ARXIV:{query}"
+            is_direct = True
+        elif _re.match(r"^[0-9a-f]{40}$", query):
+            lookup_id = query
+            is_direct = True
+
+        try:
+            if is_direct:
+                time.sleep(1)  # Rate limit: 1 req/sec for free tier
+                url = f"https://api.semanticscholar.org/graph/v1/paper/{lookup_id}?fields={fields}"
+                req = urllib.request.Request(url, headers={"User-Agent": "OpenScout/1.0"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8", errors="replace"))
+                if isinstance(data, dict) and data.get("title"):
+                    results = [self._format_s2_paper(data)]
+                else:
+                    results = []
+            else:
+                time.sleep(1)  # Rate limit: 1 req/sec for free tier
+                encoded = urllib.request.quote(query)
+                url = f"https://api.semanticscholar.org/graph/v1/paper/search?query={encoded}&limit={clamped}&fields={fields}"
+                req = urllib.request.Request(url, headers={"User-Agent": "OpenScout/1.0"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    data = json.loads(resp.read().decode("utf-8", errors="replace"))
+                results = []
+                for paper in (data.get("data") or []) if isinstance(data, dict) else []:
+                    if isinstance(paper, dict):
+                        results.append(self._format_s2_paper(paper))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")[:300]
+            return f"Semantic Scholar API error (HTTP {exc.code}): {body}"
+        except Exception as exc:
+            return f"Semantic Scholar lookup failed: {exc}"
+
+        output = {"query": query, "results": results, "total": len(results)}
+        return self._clip(json.dumps(output, indent=2, ensure_ascii=True), self.max_file_chars)
+
+    @staticmethod
+    def _format_s2_paper(paper: dict[str, Any]) -> dict[str, Any]:
+        """Normalise a Semantic Scholar paper dict to a compact shape."""
+        authors_raw = paper.get("authors")
+        if isinstance(authors_raw, list):
+            authors = [a.get("name", "") if isinstance(a, dict) else str(a) for a in authors_raw][:10]
+        else:
+            authors = []
+        ext = paper.get("externalIds") or {}
+        return {
+            "paper_id": paper.get("paperId", ""),
+            "title": paper.get("title", ""),
+            "year": paper.get("year"),
+            "authors": authors,
+            "abstract": (paper.get("abstract") or "")[:500],
+            "citation_count": paper.get("citationCount", 0),
+            "url": paper.get("url", ""),
+            "doi": ext.get("DOI", "") if isinstance(ext, dict) else "",
+            "arxiv_id": ext.get("ArXiv", "") if isinstance(ext, dict) else "",
+        }
+
+    def crossref_resolve(self, doi: str) -> str:
+        """Resolve a DOI via the CrossRef API."""
+        doi = doi.strip()
+        if not doi:
+            return "crossref_resolve requires a non-empty DOI"
+        url = f"https://api.crossref.org/works/{urllib.request.quote(doi, safe='')}"
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "OpenScout/1.0 (mailto:openscout@example.com)",
+                    "Accept": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return f"DOI not found: {doi}"
+            body = exc.read().decode("utf-8", errors="replace")[:300]
+            return f"CrossRef API error (HTTP {exc.code}): {body}"
+        except Exception as exc:
+            return f"CrossRef resolve failed: {exc}"
+
+        work = data.get("message", {}) if isinstance(data, dict) else {}
+        if not isinstance(work, dict):
+            return f"Unexpected CrossRef response for DOI {doi}"
+
+        # Extract authors
+        authors = []
+        for a in (work.get("author") or [])[:10]:
+            if isinstance(a, dict):
+                name = f"{a.get('given', '')} {a.get('family', '')}".strip()
+                if name:
+                    authors.append(name)
+
+        # Extract title
+        titles = work.get("title", [])
+        title = titles[0] if isinstance(titles, list) and titles else str(titles)
+
+        result: dict[str, Any] = {
+            "doi": doi,
+            "title": title,
+            "authors": authors,
+            "publisher": work.get("publisher", ""),
+            "container_title": (work.get("container-title") or [""])[0] if isinstance(work.get("container-title"), list) else "",
+            "published_date": str(work.get("published") or work.get("created") or ""),
+            "type": work.get("type", ""),
+            "is_referenced_by_count": work.get("is-referenced-by-count", 0),
+            "references_count": work.get("references-count", 0),
+            "url": work.get("URL", ""),
+        }
+        return self._clip(json.dumps(result, indent=2, ensure_ascii=True), self.max_file_chars)
+
+    def pdf_extract(self, path: str, max_pages: int | None = None) -> str:
+        """Extract text and tables from a PDF file in the workspace."""
+        resolved = self._resolve_path(path)
+        if not resolved.exists():
+            return f"File not found: {path}"
+        if resolved.is_dir():
+            return f"Path is a directory, not a file: {path}"
+        if resolved.suffix.lower() != ".pdf":
+            return f"Not a PDF file: {path}"
+        try:
+            import fitz  # pymupdf
+        except ImportError:
+            return "pdf_extract unavailable: 'pymupdf' package not installed (pip install pymupdf)"
+        try:
+            doc = fitz.open(str(resolved))
+        except Exception as exc:
+            return f"Failed to open PDF {path}: {exc}"
+
+        total_pages = len(doc)
+        pages_to_read = total_pages
+        if max_pages is not None and max_pages > 0:
+            pages_to_read = min(int(max_pages), total_pages)
+
+        text_parts: list[str] = []
+        table_count = 0
+        for i in range(pages_to_read):
+            page = doc[i]
+            page_text = page.get_text("text")
+            section = f"--- Page {i + 1}/{total_pages} ---\n{page_text}"
+
+            # Attempt table extraction
+            try:
+                tables = page.find_tables()
+                if tables and tables.tables:
+                    for t_idx, table in enumerate(tables.tables):
+                        table_count += 1
+                        rows = table.extract()
+                        if rows:
+                            section += f"\n\n[TABLE {table_count} on page {i + 1}]\n"
+                            section += self._rows_to_markdown_table(rows)
+            except Exception:
+                pass  # Table extraction is best-effort
+
+            text_parts.append(section)
+        doc.close()
+
+        full_text = "\n\n".join(text_parts)
+        rel = resolved.relative_to(self.root).as_posix()
+        table_note = f", {table_count} table(s)" if table_count else ""
+        header = f"# {rel} ({total_pages} pages, extracted {pages_to_read}{table_note})\n\n"
+        return self._clip(header + full_text, self.max_file_chars)
+
+    @staticmethod
+    def _rows_to_markdown_table(rows: list[list]) -> str:
+        """Convert a list of row-lists into a Markdown table string."""
+        if not rows:
+            return ""
+        # Clean cells: replace None with empty string, strip whitespace
+        cleaned = []
+        for row in rows:
+            cleaned.append([str(cell).strip() if cell is not None else "" for cell in row])
+        # Header row
+        header = "| " + " | ".join(cleaned[0]) + " |"
+        separator = "| " + " | ".join(["---"] * len(cleaned[0])) + " |"
+        lines = [header, separator]
+        for row in cleaned[1:]:
+            # Pad row to match header length if needed
+            while len(row) < len(cleaned[0]):
+                row.append("")
+            lines.append("| " + " | ".join(row[:len(cleaned[0])]) + " |")
+        return "\n".join(lines)
+

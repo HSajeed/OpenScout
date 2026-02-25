@@ -126,7 +126,7 @@ class CredentialsFromEnvTests(unittest.TestCase):
 
     def test_rlm_prefix_takes_priority(self) -> None:
         env = {
-            "OPENPLANTER_OPENAI_API_KEY": "rlm-key",
+            "OPENSCOUT_OPENAI_API_KEY": "rlm-key",
             "OPENAI_API_KEY": "standard-key",
         }
         with patch.dict(os.environ, env, clear=True):
@@ -145,8 +145,8 @@ class CredentialsFromEnvTests(unittest.TestCase):
             creds = credentials_from_env()
         self.assertIsNone(creds.openai_api_key)
 
-    def test_openplanter_openai_key_from_env(self) -> None:
-        env = {"OPENPLANTER_OPENAI_API_KEY": "test-key"}
+    def test_openscout_openai_key_from_env(self) -> None:
+        env = {"OPENSCOUT_OPENAI_API_KEY": "test-key"}
         with patch.dict(os.environ, env, clear=True):
             creds = credentials_from_env()
         self.assertEqual(creds.openai_api_key, "test-key")
@@ -170,12 +170,12 @@ class AgentConfigFromEnvTests(unittest.TestCase):
 
     def test_custom_env_overrides(self) -> None:
         env = {
-            "OPENPLANTER_PROVIDER": "anthropic",
-            "OPENPLANTER_MODEL": "claude-opus-4-6",
-            "OPENPLANTER_REASONING_EFFORT": "low",
-            "OPENPLANTER_MAX_DEPTH": "5",
-            "OPENPLANTER_MAX_STEPS": "20",
-            "OPENPLANTER_SHELL": "/bin/bash",
+            "OPENSCOUT_PROVIDER": "anthropic",
+            "OPENSCOUT_MODEL": "claude-opus-4-6",
+            "OPENSCOUT_REASONING_EFFORT": "low",
+            "OPENSCOUT_MAX_DEPTH": "5",
+            "OPENSCOUT_MAX_STEPS": "20",
+            "OPENSCOUT_SHELL": "/bin/bash",
         }
         with patch.dict(os.environ, env, clear=True):
             cfg = AgentConfig.from_env("/tmp/test-ws")

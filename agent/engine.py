@@ -971,6 +971,47 @@ class RLMEngine:
             limit = int(args.get("limit", 100) or 100)
             return False, self._read_artifact(aid, offset, limit)
 
+        # ----- Academic research tools -----
+        if name == "arxiv_search":
+            query = str(args.get("query", "")).strip()
+            if not query:
+                return False, "arxiv_search requires non-empty query"
+            raw_max = args.get("max_results", 10)
+            max_results = raw_max if isinstance(raw_max, int) else 10
+            return False, self.tools.arxiv_search(query=query, max_results=max_results)
+
+        if name == "semantic_scholar_lookup":
+            query = str(args.get("query", "")).strip()
+            if not query:
+                return False, "semantic_scholar_lookup requires non-empty query"
+            fields = str(args.get("fields", "title,authors,year,abstract,citationCount,url,externalIds"))
+            raw_max = args.get("max_results", 5)
+            max_results = raw_max if isinstance(raw_max, int) else 5
+            return False, self.tools.semantic_scholar_lookup(query=query, fields=fields, max_results=max_results)
+
+        if name == "crossref_resolve":
+            doi = str(args.get("doi", "")).strip()
+            if not doi:
+                return False, "crossref_resolve requires non-empty doi"
+            return False, self.tools.crossref_resolve(doi=doi)
+
+        if name == "pdf_extract":
+            path = str(args.get("path", "")).strip()
+            if not path:
+                return False, "pdf_extract requires path"
+            raw_max = args.get("max_pages")
+            max_pages = int(raw_max) if raw_max is not None else None
+            return False, self.tools.pdf_extract(path=path, max_pages=max_pages)
+
+        if name == "openalex_search":
+            query = str(args.get("query", "")).strip()
+            if not query:
+                return False, "openalex_search requires non-empty query"
+            raw_max = args.get("max_results", 10)
+            max_results = raw_max if isinstance(raw_max, int) else 10
+            filter_expr = str(args.get("filter", ""))
+            return False, self.tools.openalex_search(query=query, max_results=max_results, filter_expr=filter_expr)
+
         return False, f"Unknown action type: {name}"
 
     # ------------------------------------------------------------------
@@ -979,7 +1020,7 @@ class RLMEngine:
 
     def _list_artifacts(self) -> str:
         """List available artifacts."""
-        artifacts_dir = self.config.workspace / ".openplanter_artifacts"
+        artifacts_dir = self.config.workspace / ".openscout_artifacts"
         if not artifacts_dir.exists():
             return "No artifacts found."
         entries = sorted(artifacts_dir.glob("*.jsonl"))
@@ -1000,7 +1041,7 @@ class RLMEngine:
 
     def _read_artifact(self, artifact_id: str, offset: int = 0, limit: int = 100) -> str:
         """Read an artifact's conversation log."""
-        artifacts_dir = self.config.workspace / ".openplanter_artifacts"
+        artifacts_dir = self.config.workspace / ".openscout_artifacts"
         path = artifacts_dir / f"{artifact_id}.jsonl"
         if not path.exists():
             return f"Artifact '{artifact_id}' not found."

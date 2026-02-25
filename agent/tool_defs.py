@@ -1,4 +1,4 @@
-"""Provider-neutral tool definitions for the OpenPlanter agent.
+"""Provider-neutral tool definitions for the OpenScout agent.
 
 Single source of truth for tool schemas. Converter helpers produce the
 provider-specific shapes expected by OpenAI and Anthropic APIs.
@@ -63,7 +63,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "web_search",
-        "description": "Search the web using the Exa API. Returns URLs, titles, and optional page text.",
+        "description": "Search the web using DuckDuckGo. Returns URLs, titles, and snippets. No API key required.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -309,6 +309,105 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
             },
             "required": ["job_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "arxiv_search",
+        "description": "Search arXiv for academic papers. Returns titles, abstracts, authors, arXiv IDs, and publication dates.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query string (arXiv search syntax supported).",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (1-50, default 10).",
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "semantic_scholar_lookup",
+        "description": "Look up papers on Semantic Scholar by query, DOI, arXiv ID, or Semantic Scholar paper ID. Returns metadata, citation counts, and references.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query, DOI (e.g. '10.1234/...'), arXiv ID (e.g. '2301.00001'), or S2 paper ID.",
+                },
+                "fields": {
+                    "type": "string",
+                    "description": "Comma-separated list of fields to return (default: 'title,authors,year,abstract,citationCount,url,externalIds').",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum results for keyword searches (1-20, default 5). Ignored for direct ID lookups.",
+                },
+            },
+            "required": ["query"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "crossref_resolve",
+        "description": "Resolve a DOI via the CrossRef API. Returns full citation metadata including title, authors, journal, publication date, and references.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "doi": {
+                    "type": "string",
+                    "description": "The DOI to resolve (e.g. '10.1145/1234567.1234568').",
+                },
+            },
+            "required": ["doi"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "pdf_extract",
+        "description": "Extract text and tables from a PDF file in the workspace. Returns the full text, plus any detected tables in Markdown format.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative or absolute path to the PDF file within the workspace.",
+                },
+                "max_pages": {
+                    "type": "integer",
+                    "description": "Maximum number of pages to extract (default: all pages).",
+                },
+            },
+            "required": ["path"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "openalex_search",
+        "description": "Use this tool for broad metadata discovery, tracking institutional affiliations, funder data, author networks, and interdisciplinary breadth. Do NOT use this for deep full-text extraction.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query string for academic works.",
+                },
+                "max_results": {
+                    "type": "integer",
+                    "description": "Maximum number of results to return (1-50, default 10).",
+                },
+                "filter": {
+                    "type": "string",
+                    "description": "Optional OpenAlex filter expression (e.g. 'publication_year:2024', 'is_oa:true').",
+                },
+            },
+            "required": ["query"],
             "additionalProperties": False,
         },
     },

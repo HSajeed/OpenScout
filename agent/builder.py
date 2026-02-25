@@ -28,6 +28,7 @@ from .tools import WorkspaceTools
 _ANTHROPIC_RE = re.compile(r"^claude", re.IGNORECASE)
 _OPENAI_RE = re.compile(r"^(gpt|o[1-4]-|o[1-4]$|chatgpt|dall-e|tts-|whisper)", re.IGNORECASE)
 _CEREBRAS_RE = re.compile(r"^(llama.*cerebras|qwen-3|gpt-oss|zai-glm)", re.IGNORECASE)
+_GOOGLE_RE = re.compile(r"^gemini", re.IGNORECASE)
 _OLLAMA_RE = re.compile(
     r"^(llama|mistral|gemma|phi|codellama|deepseek|vicuna|tinyllama|"
     r"neural-chat|dolphin|wizardlm|orca|nous-hermes|command-r|qwen(?!-3))",
@@ -43,6 +44,8 @@ def infer_provider_for_model(model: str) -> str | None:
         return "anthropic"
     if _CEREBRAS_RE.search(model):
         return "cerebras"
+    if _GOOGLE_RE.search(model):
+        return "google"
     if _OPENAI_RE.search(model):
         return "openai"
     if _OLLAMA_RE.search(model):
@@ -81,6 +84,10 @@ def _fetch_models_for_provider(cfg: AgentConfig, provider: str) -> list[dict]:
         if not cfg.cerebras_api_key:
             raise ModelError("Cerebras key not configured.")
         return list_openai_models(api_key=cfg.cerebras_api_key, base_url=cfg.cerebras_base_url)
+    if provider == "google":
+        if not cfg.google_api_key:
+            raise ModelError("Google AI Studio key not configured.")
+        return list_openai_models(api_key=cfg.google_api_key, base_url=cfg.google_base_url)
     if provider == "ollama":
         return list_ollama_models(base_url=cfg.ollama_base_url)
     raise ModelError(f"Unknown provider: {provider}")
@@ -127,8 +134,8 @@ def build_model_factory(cfg: AgentConfig) -> ModelFactory | None:
                 base_url=cfg.openrouter_base_url,
                 reasoning_effort=effort,
                 extra_headers={
-                    "HTTP-Referer": "https://github.com/openplanter",
-                    "X-Title": "OpenPlanter",
+                    "HTTP-Referer": "https://github.com/openscout",
+                    "X-Title": "OpenScout",
                 },
             )
         if provider == "cerebras" and cfg.cerebras_api_key:
@@ -136,6 +143,13 @@ def build_model_factory(cfg: AgentConfig) -> ModelFactory | None:
                 model=model_name,
                 api_key=cfg.cerebras_api_key,
                 base_url=cfg.cerebras_base_url,
+                reasoning_effort=effort,
+            )
+        if provider == "google" and cfg.google_api_key:
+            return OpenAICompatibleModel(
+                model=model_name,
+                api_key=cfg.google_api_key,
+                base_url=cfg.google_base_url,
                 reasoning_effort=effort,
             )
         if provider == "ollama":
@@ -149,7 +163,7 @@ def build_model_factory(cfg: AgentConfig) -> ModelFactory | None:
             )
         raise ModelError(f"No API key available for model '{model_name}' (provider={provider})")
 
-    if cfg.anthropic_api_key or cfg.openai_api_key or cfg.openrouter_api_key or cfg.cerebras_api_key or cfg.ollama_base_url:
+    if cfg.anthropic_api_key or cfg.openai_api_key or cfg.openrouter_api_key or cfg.cerebras_api_key or cfg.google_api_key or cfg.ollama_base_url:
         return _factory
     return None
 
@@ -163,8 +177,7 @@ def build_engine(cfg: AgentConfig) -> RLMEngine:
         max_file_chars=cfg.max_file_chars,
         max_files_listed=cfg.max_files_listed,
         max_search_hits=cfg.max_search_hits,
-        exa_api_key=cfg.exa_api_key,
-        exa_base_url=cfg.exa_base_url,
+        openalex_api_key=cfg.openalex_api_key,
     )
 
     try:
@@ -189,8 +202,8 @@ def build_engine(cfg: AgentConfig) -> RLMEngine:
             base_url=cfg.openrouter_base_url,
             reasoning_effort=cfg.reasoning_effort,
             extra_headers={
-                "HTTP-Referer": "https://github.com/openplanter",
-                "X-Title": "OpenPlanter",
+                "HTTP-Referer": "https://github.com/openscout",
+                "X-Title": "OpenScout",
             },
         )
     elif cfg.provider == "cerebras" and cfg.cerebras_api_key:
@@ -198,6 +211,13 @@ def build_engine(cfg: AgentConfig) -> RLMEngine:
             model=model_name,
             api_key=cfg.cerebras_api_key,
             base_url=cfg.cerebras_base_url,
+            reasoning_effort=cfg.reasoning_effort,
+        )
+    elif cfg.provider == "google" and cfg.google_api_key:
+        model = OpenAICompatibleModel(
+            model=model_name,
+            api_key=cfg.google_api_key,
+            base_url=cfg.google_base_url,
             reasoning_effort=cfg.reasoning_effort,
         )
     elif cfg.provider == "ollama":

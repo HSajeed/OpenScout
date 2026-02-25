@@ -75,9 +75,9 @@ def _build_splash() -> str:
     """Generate the startup ASCII art banner with potted plants."""
     try:
         import pyfiglet
-        art = pyfiglet.figlet_format("OpenPlanter", font="standard").rstrip()
+        art = pyfiglet.figlet_format("OpenScout", font="standard").rstrip()
     except Exception:
-        art = "   OpenPlanter"
+        art = "   OpenScout"
     lines = art.splitlines()
     # Strip common leading whitespace so the plants align flush
     min_indent = min((len(l) - len(l.lstrip()) for l in lines if l.strip()), default=0)
@@ -749,7 +749,7 @@ class RichREPL:
 
         self._activity = _ActivityDisplay(self.console, censor_fn=censor_fn)
 
-        history_dir = Path.home() / ".openplanter"
+        history_dir = Path.home() / ".openscout"
         history_dir.mkdir(parents=True, exist_ok=True)
         history_path = history_dir / "repl_history"
 

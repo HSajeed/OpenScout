@@ -15,7 +15,8 @@ class CredentialBundle:
     anthropic_api_key: str | None = None
     openrouter_api_key: str | None = None
     cerebras_api_key: str | None = None
-    exa_api_key: str | None = None
+    google_api_key: str | None = None
+    openalex_api_key: str | None = None
     voyage_api_key: str | None = None
 
     def has_any(self) -> bool:
@@ -24,7 +25,8 @@ class CredentialBundle:
             or (self.anthropic_api_key and self.anthropic_api_key.strip())
             or (self.openrouter_api_key and self.openrouter_api_key.strip())
             or (self.cerebras_api_key and self.cerebras_api_key.strip())
-            or (self.exa_api_key and self.exa_api_key.strip())
+            or (self.google_api_key and self.google_api_key.strip())
+            or (self.openalex_api_key and self.openalex_api_key.strip())
             or (self.voyage_api_key and self.voyage_api_key.strip())
         )
 
@@ -37,8 +39,10 @@ class CredentialBundle:
             self.openrouter_api_key = other.openrouter_api_key
         if not self.cerebras_api_key and other.cerebras_api_key:
             self.cerebras_api_key = other.cerebras_api_key
-        if not self.exa_api_key and other.exa_api_key:
-            self.exa_api_key = other.exa_api_key
+        if not self.google_api_key and other.google_api_key:
+            self.google_api_key = other.google_api_key
+        if not self.openalex_api_key and other.openalex_api_key:
+            self.openalex_api_key = other.openalex_api_key
         if not self.voyage_api_key and other.voyage_api_key:
             self.voyage_api_key = other.voyage_api_key
 
@@ -52,8 +56,10 @@ class CredentialBundle:
             out["openrouter_api_key"] = self.openrouter_api_key
         if self.cerebras_api_key:
             out["cerebras_api_key"] = self.cerebras_api_key
-        if self.exa_api_key:
-            out["exa_api_key"] = self.exa_api_key
+        if self.google_api_key:
+            out["google_api_key"] = self.google_api_key
+        if self.openalex_api_key:
+            out["openalex_api_key"] = self.openalex_api_key
         if self.voyage_api_key:
             out["voyage_api_key"] = self.voyage_api_key
         return out
@@ -67,7 +73,8 @@ class CredentialBundle:
             anthropic_api_key=(payload.get("anthropic_api_key") or "").strip() or None,
             openrouter_api_key=(payload.get("openrouter_api_key") or "").strip() or None,
             cerebras_api_key=(payload.get("cerebras_api_key") or "").strip() or None,
-            exa_api_key=(payload.get("exa_api_key") or "").strip() or None,
+            google_api_key=(payload.get("google_api_key") or "").strip() or None,
+            openalex_api_key=(payload.get("openalex_api_key") or "").strip() or None,
             voyage_api_key=(payload.get("voyage_api_key") or "").strip() or None,
         )
 
@@ -102,40 +109,46 @@ def parse_env_file(path: Path) -> CredentialBundle:
         env[key] = value
 
     return CredentialBundle(
-        openai_api_key=(env.get("OPENAI_API_KEY") or env.get("OPENPLANTER_OPENAI_API_KEY") or "").strip() or None,
-        anthropic_api_key=(env.get("ANTHROPIC_API_KEY") or env.get("OPENPLANTER_ANTHROPIC_API_KEY") or "").strip()
+        openai_api_key=(env.get("OPENAI_API_KEY") or env.get("OPENSCOUT_OPENAI_API_KEY") or "").strip() or None,
+        anthropic_api_key=(env.get("ANTHROPIC_API_KEY") or env.get("OPENSCOUT_ANTHROPIC_API_KEY") or "").strip()
         or None,
-        openrouter_api_key=(env.get("OPENROUTER_API_KEY") or env.get("OPENPLANTER_OPENROUTER_API_KEY") or "").strip()
+        openrouter_api_key=(env.get("OPENROUTER_API_KEY") or env.get("OPENSCOUT_OPENROUTER_API_KEY") or "").strip()
         or None,
-        cerebras_api_key=(env.get("CEREBRAS_API_KEY") or env.get("OPENPLANTER_CEREBRAS_API_KEY") or "").strip()
+        cerebras_api_key=(env.get("CEREBRAS_API_KEY") or env.get("OPENSCOUT_CEREBRAS_API_KEY") or "").strip()
         or None,
-        exa_api_key=(env.get("EXA_API_KEY") or env.get("OPENPLANTER_EXA_API_KEY") or "").strip() or None,
-        voyage_api_key=(env.get("VOYAGE_API_KEY") or env.get("OPENPLANTER_VOYAGE_API_KEY") or "").strip() or None,
+        google_api_key=(env.get("GOOGLE_API_KEY") or env.get("OPENSCOUT_GOOGLE_API_KEY") or "").strip()
+        or None,
+        openalex_api_key=(env.get("OPENALEX_API_KEY") or env.get("OPENSCOUT_OPENALEX_API_KEY") or "").strip() or None,
+        voyage_api_key=(env.get("VOYAGE_API_KEY") or env.get("OPENSCOUT_VOYAGE_API_KEY") or "").strip() or None,
     )
 
 
 def credentials_from_env() -> CredentialBundle:
     return CredentialBundle(
         openai_api_key=(
-            os.getenv("OPENPLANTER_OPENAI_API_KEY")
+            os.getenv("OPENSCOUT_OPENAI_API_KEY")
             or os.getenv("OPENAI_API_KEY")
             or ""
         ).strip()
         or None,
         anthropic_api_key=(
-            os.getenv("OPENPLANTER_ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or ""
+            os.getenv("OPENSCOUT_ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY") or ""
         ).strip()
         or None,
         openrouter_api_key=(
-            os.getenv("OPENPLANTER_OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY") or ""
+            os.getenv("OPENSCOUT_OPENROUTER_API_KEY") or os.getenv("OPENROUTER_API_KEY") or ""
         ).strip()
         or None,
         cerebras_api_key=(
-            os.getenv("OPENPLANTER_CEREBRAS_API_KEY") or os.getenv("CEREBRAS_API_KEY") or ""
+            os.getenv("OPENSCOUT_CEREBRAS_API_KEY") or os.getenv("CEREBRAS_API_KEY") or ""
         ).strip()
         or None,
-        exa_api_key=(os.getenv("OPENPLANTER_EXA_API_KEY") or os.getenv("EXA_API_KEY") or "").strip() or None,
-        voyage_api_key=(os.getenv("OPENPLANTER_VOYAGE_API_KEY") or os.getenv("VOYAGE_API_KEY") or "").strip() or None,
+        google_api_key=(
+            os.getenv("OPENSCOUT_GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+        ).strip()
+        or None,
+        openalex_api_key=(os.getenv("OPENSCOUT_OPENALEX_API_KEY") or os.getenv("OPENALEX_API_KEY") or "").strip() or None,
+        voyage_api_key=(os.getenv("OPENSCOUT_VOYAGE_API_KEY") or os.getenv("VOYAGE_API_KEY") or "").strip() or None,
     )
 
 
@@ -158,7 +171,7 @@ def discover_env_candidates(workspace: Path) -> list[Path]:
 @dataclass(slots=True)
 class CredentialStore:
     workspace: Path
-    session_root_dir: str = ".openplanter"
+    session_root_dir: str = ".openscout"
     credentials_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
@@ -186,12 +199,12 @@ class CredentialStore:
             pass
 
 
-_USER_CONFIG_DIR = Path.home() / ".openplanter"
+_USER_CONFIG_DIR = Path.home() / ".openscout"
 
 
 @dataclass(slots=True)
 class UserCredentialStore:
-    """User-level credential store at ~/.openplanter/credentials.json."""
+    """User-level credential store at ~/.openscout/credentials.json."""
     credentials_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
@@ -229,7 +242,8 @@ def prompt_for_credentials(
         anthropic_api_key=existing.anthropic_api_key,
         openrouter_api_key=existing.openrouter_api_key,
         cerebras_api_key=existing.cerebras_api_key,
-        exa_api_key=existing.exa_api_key,
+        google_api_key=existing.google_api_key,
+        openalex_api_key=existing.openalex_api_key,
         voyage_api_key=existing.voyage_api_key,
     )
 
@@ -262,7 +276,8 @@ def prompt_for_credentials(
     current.anthropic_api_key = _ask("Anthropic", current.anthropic_api_key)
     current.openrouter_api_key = _ask("OpenRouter", current.openrouter_api_key)
     current.cerebras_api_key = _ask("Cerebras", current.cerebras_api_key)
-    current.exa_api_key = _ask("Exa", current.exa_api_key)
+    current.google_api_key = _ask("Google AI Studio", current.google_api_key)
+    current.openalex_api_key = _ask("OpenAlex", current.openalex_api_key)
     current.voyage_api_key = _ask("Voyage", current.voyage_api_key)
     if not force and current.has_any() and not existing.has_any():
         changed = True

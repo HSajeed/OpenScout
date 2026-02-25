@@ -1,185 +1,174 @@
-# OpenPlanter
+# 🔬 OpenScout
 
-A recursive-language-model investigation agent with a terminal UI. OpenPlanter ingests heterogeneous datasets — corporate registries, campaign finance records, lobbying disclosures, government contracts, and more — resolves entities across them, and surfaces non-obvious connections through evidence-backed analysis. It operates autonomously with file I/O, shell execution, web search, and recursive sub-agent delegation.
+**An AI-powered academic systematic literature review agent.**
 
-## Quickstart
+OpenScout searches and ingests scholarly sources — arXiv preprints, Semantic Scholar records, CrossRef metadata, and PDF full-texts — resolves references across them, and synthesises research gaps, methodological patterns, and emerging trends through evidence-backed analysis.
+
+---
+
+## ✨ Features
+
+| Tool | Description |
+|------|-------------|
+| `arxiv_search` | Search arXiv for preprints by query, returning titles, abstracts, authors, and PDF links |
+| `semantic_scholar_lookup` | Look up papers on Semantic Scholar by query, DOI, arXiv ID, or S2 Paper ID |
+| `openalex_search` | Search the OpenAlex academic database for works with citation counts, DOIs, and open access links |
+| `crossref_resolve` | Resolve a DOI via CrossRef to get full citation metadata |
+| `pdf_extract` | Extract text and tables from PDF documents (local files or URLs) |
+| `web_search` | General web search via DuckDuckGo *(no API key needed)* |
+| `read_file` / `write_file` | Read and write workspace files for notes, summaries, and reports |
+| `run_shell` | Execute shell commands for data processing |
+
+**Additional capabilities:**
+- 🔄 **Recursive reasoning** — breaks complex literature reviews into sub-tasks automatically
+- 📝 **Acceptance criteria** — self-validates output quality before finishing
+- 🧠 **Multi-provider LLM support** — Google Gemini, OpenAI, Anthropic, Ollama, and more
+- 📊 **Table extraction** — pulls methodology tables from PDFs into Markdown
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.10+ or Docker
+- An API key for at least one LLM provider
+
+### 1. Clone & Configure
 
 ```bash
-# Install
+git clone https://github.com/your-username/OpenScout.git
+cd OpenScout
+
+# Copy the example env and fill in your API key
+cp .env.example .env
+# Edit .env — at minimum, set GOOGLE_API_KEY (or another provider key)
+```
+
+### 2a. Run with Docker *(recommended)*
+
+```bash
+# Build and run
+make setup
+make run
+
+# Or directly:
+docker compose run --rm agent
+```
+
+### 2b. Run Locally
+
+```bash
 pip install -e .
-
-# Configure API keys (interactive prompt)
-openplanter-agent --configure-keys
-
-# Launch the TUI
-openplanter-agent --workspace /path/to/your/project
+source .env           # or: set -a && source .env && set +a
+python -m agent --workspace ./workspace
 ```
 
-Or run a single task headlessly:
+---
+
+## ⚙️ Configuration
+
+All configuration is done through the `.env` file. See [`.env.example`](.env.example) for all options.
+
+### Supported Providers
+
+| Provider | Model Example | Env Variable |
+|----------|--------------|--------------|
+| **Google AI Studio** | `gemini-2.5-flash` | `GOOGLE_API_KEY` |
+| **OpenAI** | `gpt-4o` | `OPENAI_API_KEY` |
+| **Anthropic** | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
+| **OpenRouter** | `anthropic/claude-sonnet-4-5` | `OPENROUTER_API_KEY` |
+| **Cerebras** | `qwen-3-235b` | `CEREBRAS_API_KEY` |
+| **Ollama** *(local)* | `llama3.2` | — *(no key needed)* |
+
+Switch providers by changing two lines in `.env`:
 
 ```bash
-openplanter-agent --task "Cross-reference vendor payments against lobbying disclosures and flag overlaps" --workspace ./data
+OPENSCOUT_PROVIDER=google
+OPENSCOUT_MODEL=gemini-2.5-flash
 ```
 
-### Docker
+### CLI Options
+
+```
+--provider      Override the LLM provider (google, openai, anthropic, etc.)
+--model         Override the model name
+--workspace     Path to the working directory (default: ./workspace)
+--max-steps     Maximum tool-call steps per task (default: 100)
+--max-depth     Maximum recursion depth (default: 4)
+--headless      Run without interactive TUI (for scripting)
+--task          Provide a task directly instead of using the TUI
+--configure-keys  Interactive API key setup
+--list-models   List available models for a provider
+```
+
+---
+
+## 📖 Usage Examples
+
+### Interactive Mode
+```bash
+docker compose run --rm agent
+```
+Then type your research question in the TUI:
+> *"Find the 10 most cited papers on Retrieval Augmented Generation, compare their architectures, and write a summary to review.md"*
+
+### Headless Mode
+```bash
+docker compose run --rm agent \
+  --headless \
+  --max-steps 20 \
+  --task "Search arXiv for papers on physics-informed neural networks published in 2024. Write a literature review to pinn_review.md."
+```
+
+### Using Ollama (Local Models)
+```bash
+# Install and start Ollama, then pull a model
+ollama pull llama3.2
+
+# Update .env
+OPENSCOUT_PROVIDER=ollama
+OPENSCOUT_MODEL=llama3.2
+
+docker compose run --rm agent
+```
+
+---
+
+## 🏗️ Project Structure
+
+```
+OpenScout/
+├── agent/               # Core agent source code
+│   ├── __main__.py      # CLI entry point
+│   ├── engine.py        # Recursive reasoning engine & tool dispatch
+│   ├── builder.py       # Model factory & provider wiring
+│   ├── config.py        # Configuration dataclass
+│   ├── credentials.py   # API key management
+│   ├── prompts.py       # System prompts & persona
+│   ├── tools.py         # Tool implementations (arxiv, S2, CrossRef, PDF)
+│   └── tool_defs.py     # Tool schema definitions
+├── tests/               # Unit tests
+├── .env.example         # Template for environment configuration
+├── Dockerfile           # Container image definition
+├── docker-compose.yml   # Docker Compose service definition
+├── Makefile             # Quick commands (setup, run, demo, clean)
+└── pyproject.toml       # Python package metadata
+```
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Add your API keys to .env, then:
-docker compose up
+# Run unit tests
+python -m unittest discover -s tests -v
+
+# Run the RAG Synthesis demo (requires API key)
+make demo
 ```
 
-The container mounts `./workspace` as the agent's working directory.
+---
 
-## Supported Providers
+## 📄 License
 
-| Provider | Default Model | Env Var |
-|----------|---------------|---------|
-| OpenAI | `gpt-5.2` | `OPENAI_API_KEY` |
-| Anthropic | `claude-opus-4-6` | `ANTHROPIC_API_KEY` |
-| OpenRouter | `anthropic/claude-sonnet-4-5` | `OPENROUTER_API_KEY` |
-| Cerebras | `qwen-3-235b-a22b-instruct-2507` | `CEREBRAS_API_KEY` |
-| Ollama | `llama3.2` | (none — local) |
-
-### Local Models (Ollama)
-
-[Ollama](https://ollama.com) runs models locally with no API key. Install Ollama, pull a model (`ollama pull llama3.2`), then:
-
-```bash
-openplanter-agent --provider ollama
-openplanter-agent --provider ollama --model mistral
-openplanter-agent --provider ollama --list-models
-```
-
-The base URL defaults to `http://localhost:11434/v1` and can be overridden with `OPENPLANTER_OLLAMA_BASE_URL` or `--base-url`. The first request may be slow while Ollama loads the model into memory; a 120-second first-byte timeout is used automatically.
-
-Additional service keys: `EXA_API_KEY` (web search), `VOYAGE_API_KEY` (embeddings).
-
-All keys can also be set with an `OPENPLANTER_` prefix (e.g. `OPENPLANTER_OPENAI_API_KEY`), via `.env` files in the workspace, or via CLI flags.
-
-## Agent Tools
-
-The agent has access to 19 tools, organized around its investigation workflow:
-
-**Dataset ingestion & workspace** — `list_files`, `search_files`, `repo_map`, `read_file`, `write_file`, `edit_file`, `hashline_edit`, `apply_patch` — load, inspect, and transform source datasets; write structured findings.
-
-**Shell execution** — `run_shell`, `run_shell_bg`, `check_shell_bg`, `kill_shell_bg` — run analysis scripts, data pipelines, and validation checks.
-
-**Web** — `web_search` (Exa), `fetch_url` — pull public records, verify entities, and retrieve supplementary data.
-
-**Planning & delegation** — `think`, `subtask`, `execute`, `list_artifacts`, `read_artifact` — decompose investigations into focused sub-tasks, each with acceptance criteria and independent verification.
-
-In **recursive mode** (the default), the agent spawns sub-agents via `subtask` and `execute` to parallelize entity resolution, cross-dataset linking, and evidence-chain construction across large investigations.
-
-## CLI Reference
-
-```
-openplanter-agent [options]
-```
-
-### Workspace & Session
-
-| Flag | Description |
-|------|-------------|
-| `--workspace DIR` | Workspace root (default: `.`) |
-| `--session-id ID` | Use a specific session ID |
-| `--resume` | Resume the latest (or specified) session |
-| `--list-sessions` | List saved sessions and exit |
-
-### Model Selection
-
-| Flag | Description |
-|------|-------------|
-| `--provider NAME` | `auto`, `openai`, `anthropic`, `openrouter`, `cerebras`, `ollama` |
-| `--model NAME` | Model name or `newest` to auto-select |
-| `--reasoning-effort LEVEL` | `low`, `medium`, `high`, or `none` |
-| `--list-models` | Fetch available models from the provider API |
-
-### Execution
-
-| Flag | Description |
-|------|-------------|
-| `--task OBJECTIVE` | Run a single task and exit (headless) |
-| `--recursive` | Enable recursive sub-agent delegation |
-| `--acceptance-criteria` | Judge subtask results with a lightweight model |
-| `--max-depth N` | Maximum recursion depth (default: 4) |
-| `--max-steps N` | Maximum steps per call (default: 100) |
-| `--timeout N` | Shell command timeout in seconds (default: 45) |
-
-### UI
-
-| Flag | Description |
-|------|-------------|
-| `--no-tui` | Plain REPL (no colors or spinner) |
-| `--headless` | Non-interactive mode (for CI) |
-| `--demo` | Censor entity names and workspace paths in output |
-
-### Persistent Defaults
-
-Use `--default-model`, `--default-reasoning-effort`, or per-provider variants like `--default-model-openai` to save workspace defaults to `.openplanter/settings.json`. View them with `--show-settings`.
-
-## TUI Commands
-
-Inside the interactive REPL:
-
-| Command | Action |
-|---------|--------|
-| `/model` | Show current model and provider |
-| `/model NAME` | Switch model (aliases: `opus`, `sonnet`, `gpt5`, etc.) |
-| `/model NAME --save` | Switch and persist as default |
-| `/model list [all]` | List available models |
-| `/reasoning LEVEL` | Change reasoning effort |
-| `/status` | Show session status and token usage |
-| `/clear` | Clear the screen |
-| `/quit` | Exit |
-
-## Configuration
-
-Keys are resolved in this priority order (highest wins):
-
-1. CLI flags (`--openai-api-key`, etc.)
-2. Environment variables (`OPENAI_API_KEY` or `OPENPLANTER_OPENAI_API_KEY`)
-3. `.env` file in the workspace
-4. Workspace credential store (`.openplanter/credentials.json`)
-5. User credential store (`~/.openplanter/credentials.json`)
-
-All runtime settings can also be set via `OPENPLANTER_*` environment variables (e.g. `OPENPLANTER_MAX_DEPTH=8`).
-
-## Project Structure
-
-```
-agent/
-  __main__.py    CLI entry point and REPL
-  engine.py      Recursive language model engine
-  runtime.py     Session persistence and lifecycle
-  model.py       Provider-agnostic LLM abstraction
-  builder.py     Engine/model factory
-  tools.py       Workspace tool implementations
-  tool_defs.py   Tool JSON schemas
-  prompts.py     System prompt construction
-  config.py      Configuration dataclass
-  credentials.py Credential management
-  tui.py         Rich terminal UI
-  demo.py        Demo mode (output censoring)
-  patching.py    File patching utilities
-  settings.py    Persistent settings
-tests/           Unit and integration tests
-```
-
-## Development
-
-```bash
-# Install in editable mode
-pip install -e .
-
-# Run tests
-python -m pytest tests/
-
-# Skip live API tests
-python -m pytest tests/ --ignore=tests/test_live_models.py --ignore=tests/test_integration_live.py
-```
-
-Requires Python 3.10+. Dependencies: `rich`, `prompt_toolkit`, `pyfiglet`.
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE).
