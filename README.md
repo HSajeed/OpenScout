@@ -87,6 +87,8 @@ OPENSCOUT_PROVIDER=google
 OPENSCOUT_MODEL=gemini-2.5-flash
 ```
 
+Make sure the model has "Reasoning" capabilities. If none set it to none.
+
 ### CLI Options
 
 ```
